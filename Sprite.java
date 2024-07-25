@@ -1,11 +1,12 @@
-public class Sprite {
+import java.io.Serializable;
+
+public class Sprite implements Serializable{
     private double x, y;
     private double speed;
 
-    public Sprite(double x, double y, double speed) {
+    public Sprite(double x, double y) {
         this.x = x;
         this.y = y;
-        this.speed = speed;
     }
 
     public double getX() {

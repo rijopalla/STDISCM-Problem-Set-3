@@ -18,19 +18,34 @@ public class ParticleClient extends JPanel {
 
     public ParticleClient() {
         setPreferredSize(new Dimension(33 * 5, 19 * 5)); // 165x95 pixels
-        sprite = new Sprite(640, 360, 5); // Starting at center with speed 5
+        sprite = new Sprite(640, 360); // Starting at center with speed 5
 
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
                 switch (e.getKeyCode()) {
-                    case KeyEvent.VK_W -> sprite.move(0, sprite.getSpeed());
-                    case KeyEvent.VK_S -> sprite.move(0, -sprite.getSpeed());
-                    case KeyEvent.VK_A -> sprite.move(-sprite.getSpeed(), 0);
-                    case KeyEvent.VK_D -> sprite.move(sprite.getSpeed(), 0);
+                    case KeyEvent.VK_W:
+                    case KeyEvent.VK_UP: 
+                        sprite.move(0, 10);
+                        break;
+                    case KeyEvent.VK_S:
+                    case KeyEvent.VK_DOWN: 
+                        sprite.move(0, -10);
+                        break;
+                    case KeyEvent.VK_A:
+                    case KeyEvent.VK_LEFT: 
+                        sprite.move(-10, 0);
+                        break;
+                    case KeyEvent.VK_D:
+                    case KeyEvent.VK_RIGHT: 
+                        sprite.move(10, 0);
+                        break;
                 }
+                System.out.println("Key pressed: " + e.getKeyCode());
+                System.out.println("Before move: " + sprite.getX() + ", " + sprite.getY());
                 sendSpritePosition();
                 repaint();
+                System.out.println("After move: " + sprite.getX() + ", " + sprite.getY());
             }
         });
         setFocusable(true);
@@ -85,6 +100,7 @@ public class ParticleClient extends JPanel {
                     if (input instanceof List) {
                         // Update particle list
                         particles = (List<Particle>) input;
+                        repaint(); // Repaint to show the updated particles
                     }
                 }
             } catch (IOException | ClassNotFoundException e) {
@@ -96,12 +112,12 @@ public class ParticleClient extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        // Draw the background, sprite, and particles here
-        // Draw the sprite in the center of the screen
+        //draw the sprite in the center of the screen
         int spriteScreenX = getWidth() / 2;
         int spriteScreenY = getHeight() / 2;
         g.fillOval(spriteScreenX - 5, spriteScreenY - 5, 10, 10); // Draw the sprite as a 10x10 oval
-        // Draw particles relative to the sprite's position
+        
+        //draw particles relative to the sprite's position
         if (particles != null) {
             for (Particle p : particles) {
                 double dx = p.getX() - sprite.getX();

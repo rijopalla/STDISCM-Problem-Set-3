@@ -47,6 +47,7 @@ public class Canvas extends JPanel {
 
     public void updateSprite(Sprite sprite) {
         this.sprite = sprite;
+        repaint();
     }
 
     @Override
@@ -72,7 +73,7 @@ public class Canvas extends JPanel {
             particles.removeAll(particlesToRemove); // remove particles that have reached the target
         }
 
-        // Draw sprite
+        //draw sprite if it exists
         if (sprite != null) {
             g.setColor(Color.BLUE);
             g.fillOval((int) sprite.getX() - 5, (int) sprite.getY() - 5, 10, 10);

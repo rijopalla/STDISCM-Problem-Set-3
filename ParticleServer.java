@@ -164,6 +164,7 @@ public class ParticleServer extends JPanel {
             try {
                 while (true) {
                     Object input = in.readObject();
+                    System.out.println("Received object: " + input.getClass().getName());
                     if (input instanceof Sprite) {
                         sprite = (Sprite) input;
                         canvas.updateSprite(sprite);
