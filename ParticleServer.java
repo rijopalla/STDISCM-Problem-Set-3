@@ -1,32 +1,34 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 
 public class ParticleServer extends JPanel {
-    private Canvas canvas;
+    public Canvas canvas;
     private JTextField startXField, startYField, velocityField, startThetaField;
     private JButton addButton;
     private JRadioButton batchOption1, batchOption2, batchOption3;
     private ServerSocket serverSocket;
-    private Socket clientSocket;
-    private ObjectOutputStream out;
-    private ObjectInputStream in;
-    private Sprite sprite;
+    public List<ClientHandler> clientHandlers;
 
     public ParticleServer() {
         setLayout(new BorderLayout());
+        clientHandlers = new CopyOnWriteArrayList<>();
+        setupUI();
+        
+        //start server
+        startServer();
+    }
 
-        //create sidebar panel
+    private void setupUI() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new GridLayout(6, 1));
 
-        //add components to sidebar
         sidebar.add(new JLabel("Start X Position:"));
         startXField = new JTextField();
         sidebar.add(startXField);
@@ -44,28 +46,8 @@ public class ParticleServer extends JPanel {
         sidebar.add(startThetaField);
 
         addButton = new JButton("Add Particle");
-        addButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                try {
-                    double startX = Double.parseDouble(startXField.getText());
-                    double startY = Double.parseDouble(startYField.getText());
-                    double velocity = Double.parseDouble(velocityField.getText());
-                    double startTheta = Double.parseDouble(startThetaField.getText());
+        addButton.addActionListener(e -> addParticle());
 
-                    //make sure particles are within bounds
-                    startX = Math.min(startX, canvas.getWidth() - 5);
-                    startY = Math.min(startY, canvas.getHeight() - 5);
-
-                    canvas.addParticle(new Particle(startX, startY, velocity, startTheta));
-                    canvas.repaint();
-                } catch (NumberFormatException ex) {
-                    JOptionPane.showMessageDialog(ParticleServer.this, "Invalid input. Please check your entries.");
-                }
-            }
-        });
-
-        //adding particles in batches
         JPanel batchPanel = new JPanel();
         batchPanel.setLayout(new BoxLayout(batchPanel, BoxLayout.Y_AXIS));
 
@@ -86,109 +68,63 @@ public class ParticleServer extends JPanel {
         sidebar.add(batchPanel);
         sidebar.add(addButton);
 
-        batchOption1.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (batchOption1.isSelected()) {
-                    handleBatchOption1();
-                }
-            }
-        });
+        batchOption1.addActionListener(e -> handleBatchOption1());
+        batchOption2.addActionListener(e -> handleBatchOption2());
+        batchOption3.addActionListener(e -> handleBatchOption3());
 
-        batchOption2.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (batchOption2.isSelected()) {
-                    handleBatchOption2();
-                }
-            }
-        });
-
-        batchOption3.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (batchOption3.isSelected()) {
-                    handleBatchOption3();
-                }
-            }
-        });
-
-        //sim panel
-        canvas = new Canvas(); // Ensure Canvas is correctly defined
+        canvas = new Canvas();
         canvas.setPreferredSize(new Dimension(1280, 720));
-
-        //add sidebar and sim panel to main panel
         add(sidebar, BorderLayout.EAST);
         add(canvas, BorderLayout.CENTER);
 
-        //timer to repaint the canvas periodically
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 canvas.repaint();
-                sendParticleStates();
+                broadcastParticleStates();
             }
-        }, 0, 16); // approximately 60 FPS
-
-        //start server
-        startServer();
+        }, 0, 16);
     }
+
+    private void addParticle() {
+        try {
+            double startX = Double.parseDouble(startXField.getText());
+            double startY = Double.parseDouble(startYField.getText());
+            double velocity = Double.parseDouble(velocityField.getText());
+            double startTheta = Double.parseDouble(startThetaField.getText());
+
+            //make sure particles are within bounds
+            startX = Math.min(startX, canvas.getWidth() - 5);
+            startY = Math.min(startY, canvas.getHeight() - 5);
+
+            canvas.addParticle(new Particle(startX, startY, velocity, startTheta));
+            canvas.repaint();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(ParticleServer.this, "Invalid input. Please check your entries.");
+        }
+    }
+
 
     private void startServer() {
-        try {
-            serverSocket = new ServerSocket(12345);
-            clientSocket = serverSocket.accept();
-            out = new ObjectOutputStream(clientSocket.getOutputStream());
-            in = new ObjectInputStream(clientSocket.getInputStream());
-
-            new Thread(new ClientListener()).start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sendParticleStates() {
-        if (out != null) {
+        new Thread(() -> {
             try {
-                List<Particle> particlesToSend = canvas.getParticles();
-                System.out.println("Sending particles: " + particlesToSend.size());
-                for (Particle p : particlesToSend) {
-                    System.out.println(p); //print each particle for debugging
+                serverSocket = new ServerSocket(12345);
+                System.out.println("Server started on port 12345.");
+                while (true) {
+                    Socket clientSocket = serverSocket.accept();
+                    ClientHandler handler = new ClientHandler(clientSocket, this);
+                    clientHandlers.add(handler);
+                    new Thread(handler).start();
+                    System.out.println("New client connected: " + clientSocket.getInetAddress());
                 }
-                out.reset();
-                out.writeObject(particlesToSend);
-                out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
-                out = null; //mark stream as invalid, it will need to be reinitialized
             }
-        } else {
-            System.err.println("Output stream is null. Cannot send data.");
-        }
+        }).start();
     }
 
-    private class ClientListener implements Runnable {
-        @Override
-        public void run() {
-            try {
-                while (true) {
-                    Object input = in.readObject();
-                    System.out.println("Received object: " + input.getClass().getName());
-                    if (input instanceof Sprite) {
-                        sprite = (Sprite) input;
-                        System.out.printf("Received Sprite - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
-                        SwingUtilities.invokeLater(() -> canvas.updateSprite(sprite));
-                        out.writeObject(sprite); // Send the updated sprite back to the client
-                        out.flush();
-                    }
-                }
-            } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
+    //batch options
     private void handleBatchOption1() { //if batch option 1 was picked
         JTextField numParticlesField = new JTextField();
         JTextField startXField = new JTextField();
@@ -333,6 +269,13 @@ private void handleBatchOption3() { //if batch option 3 was picked
             }
         }
     }
+
+    private void broadcastParticleStates() {
+        for (ClientHandler handler : clientHandlers) {
+            handler.sendParticleStates(canvas.getParticles());
+        }
+    }
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
