@@ -47,6 +47,7 @@ public class Canvas extends JPanel {
 
     public void updateSprite(Sprite sprite) {
         this.sprite = sprite;
+        System.out.printf("Canvas updating sprite - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
         repaint();
     }
 

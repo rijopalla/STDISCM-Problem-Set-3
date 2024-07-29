@@ -6,13 +6,13 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+// import java.util.Timer;
+// import java.util.TimerTask;
 
 public class ParticleClient extends JPanel {
     private List<Particle> particles;
     private Sprite sprite;
-    private Timer particleUpdateTimer;
+    // private Timer particleUpdateTimer;
     private Socket socket;
     private ObjectOutputStream out;
     private ObjectInputStream in;
@@ -25,14 +25,16 @@ public class ParticleClient extends JPanel {
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
+                System.out.println("Key pressed: " + e.getKeyCode());
+                System.out.println("Before move: " + sprite.getX() + ", " + sprite.getY());
                 switch (e.getKeyCode()) {
                     case KeyEvent.VK_W:
                     case KeyEvent.VK_UP: 
-                        sprite.move(0, 10);
+                        sprite.move(0, -10);
                         break;
                     case KeyEvent.VK_S:
                     case KeyEvent.VK_DOWN: 
-                        sprite.move(0, -10);
+                        sprite.move(0, 10);
                         break;
                     case KeyEvent.VK_A:
                     case KeyEvent.VK_LEFT: 
@@ -43,18 +45,16 @@ public class ParticleClient extends JPanel {
                         sprite.move(10, 0);
                         break;
                 }
-                System.out.println("Key pressed: " + e.getKeyCode());
-                System.out.println("Before move: " + sprite.getX() + ", " + sprite.getY());
+
+                System.out.println("After move: " + sprite.getX() + ", " + sprite.getY());
                 sendSpritePosition();
                 repaint();
-                System.out.println("After move: " + sprite.getX() + ", " + sprite.getY());
             }
         });
         setFocusable(true);
         requestFocusInWindow();
 
         connectToServer();
-        startSpriteUpdates();;
     }
 
     private void connectToServer() {
@@ -69,22 +69,9 @@ public class ParticleClient extends JPanel {
         }
     }
 
-    private void startSpriteUpdates() {
-        if (particleUpdateTimer == null) {
-            particleUpdateTimer = new Timer();
-            particleUpdateTimer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    sendSpritePosition();
-                    repaint();
-                }
-            }, 0, 16); // approximately 60 FPS
-        }
-    }
-
-
     private void sendSpritePosition() {
         try {
+            System.out.printf("Sending sprite position - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
             out.writeObject(sprite);
             out.flush();
         } catch (IOException e) {
@@ -116,7 +103,13 @@ public class ParticleClient extends JPanel {
                         particles = newParticles;
                         System.out.println("Received particles: " + particles.size());
                         repaint();
-                    } else {
+                    } 
+                    else if (input instanceof Sprite) {
+                        sprite = (Sprite) input;
+                        System.out.printf("Updated sprite position from server - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
+                        SwingUtilities.invokeLater(() -> repaint());
+                    }
+                    else {
                         System.out.println("Unexpected object type received.");
                     }
                 }

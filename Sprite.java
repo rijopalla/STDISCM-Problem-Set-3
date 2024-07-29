@@ -1,8 +1,8 @@
 import java.io.Serializable;
 
 public class Sprite implements Serializable{
+    private static final long serialVersionUID = 1L;
     private double x, y;
-    private double speed;
 
     public Sprite(double x, double y) {
         this.x = x;
@@ -17,8 +17,13 @@ public class Sprite implements Serializable{
         return y;
     }
 
-    public double getSpeed() {
-        return speed;
+
+    public void setX(double x) {
+        this.x = x;
+    }
+
+    public void setY(double y) {
+        this.y = y;
     }
 
     public void move(double dx, double dy) {

@@ -177,7 +177,10 @@ public class ParticleServer extends JPanel {
                     System.out.println("Received object: " + input.getClass().getName());
                     if (input instanceof Sprite) {
                         sprite = (Sprite) input;
-                        canvas.updateSprite(sprite);
+                        System.out.printf("Received Sprite - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
+                        SwingUtilities.invokeLater(() -> canvas.updateSprite(sprite));
+                        out.writeObject(sprite); // Send the updated sprite back to the client
+                        out.flush();
                     }
                 }
             } catch (IOException | ClassNotFoundException e) {
