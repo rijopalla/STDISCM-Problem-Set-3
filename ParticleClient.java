@@ -6,13 +6,10 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
-// import java.util.Timer;
-// import java.util.TimerTask;
 
 public class ParticleClient extends JPanel {
     private List<Particle> particles;
     private Sprite sprite;
-    // private Timer particleUpdateTimer;
     private Socket socket;
     private ObjectOutputStream out;
     private ObjectInputStream in;
@@ -59,7 +56,9 @@ public class ParticleClient extends JPanel {
 
     private void connectToServer() {
         try {
-            socket = new Socket("localhost", 12345); //server IP and port
+            String serverIP = "localhost"; //server IP (replace with actual IP address)
+            int serverPort = 12345;
+            socket = new Socket(serverIP, serverPort); //server socket
             out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
 
