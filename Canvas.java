@@ -42,7 +42,7 @@ public class Canvas extends JPanel {
     }
 
     public List<Particle> getParticles() {
-        return particles;
+        return this.particles;
     }
 
     public void updateSprite(Sprite sprite) {

@@ -4,6 +4,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.*;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -21,11 +22,11 @@ public class ParticleServer extends JPanel {
     public ParticleServer() {
         setLayout(new BorderLayout());
 
-        // Create sidebar panel
+        //create sidebar panel
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new GridLayout(6, 1));
 
-        // Add components to sidebar
+        //add components to sidebar
         sidebar.add(new JLabel("Start X Position:"));
         startXField = new JTextField();
         sidebar.add(startXField);
@@ -52,7 +53,7 @@ public class ParticleServer extends JPanel {
                     double velocity = Double.parseDouble(velocityField.getText());
                     double startTheta = Double.parseDouble(startThetaField.getText());
 
-                    // Make sure particles are within bounds
+                    //make sure particles are within bounds
                     startX = Math.min(startX, canvas.getWidth() - 5);
                     startY = Math.min(startY, canvas.getHeight() - 5);
 
@@ -64,7 +65,7 @@ public class ParticleServer extends JPanel {
             }
         });
 
-        // Adding particles in batches
+        //adding particles in batches
         JPanel batchPanel = new JPanel();
         batchPanel.setLayout(new BoxLayout(batchPanel, BoxLayout.Y_AXIS));
 
@@ -112,15 +113,15 @@ public class ParticleServer extends JPanel {
             }
         });
 
-        // Simulation panel
+        //sim panel
         canvas = new Canvas(); // Ensure Canvas is correctly defined
         canvas.setPreferredSize(new Dimension(1280, 720));
 
-        // Add sidebar and simulation panel to main panel
+        //add sidebar and sim panel to main panel
         add(sidebar, BorderLayout.EAST);
         add(canvas, BorderLayout.CENTER);
 
-        // Set up a timer to repaint the canvas periodically
+        //timer to repaint the canvas periodically
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -130,7 +131,7 @@ public class ParticleServer extends JPanel {
             }
         }, 0, 16); // approximately 60 FPS
 
-        // Start the server
+        //start server
         startServer();
     }
 
@@ -148,13 +149,22 @@ public class ParticleServer extends JPanel {
     }
 
     private void sendParticleStates() {
-        try {
-            if (out != null) {
-                out.writeObject(canvas.getParticles());
+        if (out != null) {
+            try {
+                List<Particle> particlesToSend = canvas.getParticles();
+                System.out.println("Sending particles: " + particlesToSend.size());
+                for (Particle p : particlesToSend) {
+                    System.out.println(p); //print each particle for debugging
+                }
+                out.reset();
+                out.writeObject(particlesToSend);
                 out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+                out = null; //mark stream as invalid, it will need to be reinitialized
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } else {
+            System.err.println("Output stream is null. Cannot send data.");
         }
     }
 

@@ -4,6 +4,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -19,6 +20,7 @@ public class ParticleClient extends JPanel {
     public ParticleClient() {
         setPreferredSize(new Dimension(33 * 5, 19 * 5)); // 165x95 pixels
         sprite = new Sprite(640, 360); // Starting at center with speed 5
+        particles = new ArrayList<>();
 
         addKeyListener(new KeyAdapter() {
             @Override
@@ -49,13 +51,15 @@ public class ParticleClient extends JPanel {
             }
         });
         setFocusable(true);
+        requestFocusInWindow();
+
         connectToServer();
         startParticleUpdates();
     }
 
     private void connectToServer() {
         try {
-            socket = new Socket("localhost", 12345); // Server IP and port
+            socket = new Socket("localhost", 12345); //server IP and port
             out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
 
@@ -79,7 +83,7 @@ public class ParticleClient extends JPanel {
     }
 
     private void updateParticles() {
-        // Update particles received from server
+        //update particles received from server
     }
 
     private void sendSpritePosition() {
@@ -97,10 +101,26 @@ public class ParticleClient extends JPanel {
             try {
                 while (true) {
                     Object input = in.readObject();
-                    if (input instanceof List) {
-                        // Update particle list
-                        particles = (List<Particle>) input;
-                        repaint(); // Repaint to show the updated particles
+                    System.out.println("Received object: " + input.getClass().getName());
+                    if (input instanceof List<?>) {
+                        System.out.println("Received list");
+                        List<?> inputList = (List<?>) input;
+                        System.out.println("List size: " + inputList.size());
+                        List<Particle> newParticles = new ArrayList<>();
+                        for (Object obj : inputList) {
+                            System.out.println("Processing object: " + obj.getClass().getName());
+                            if (obj instanceof Particle) {
+                                System.out.println("Received particle: " + obj);
+                                newParticles.add((Particle) obj);
+                            } else {
+                                System.out.println("Non-particle object received: " + obj.getClass());
+                            }
+                        }
+                        particles = newParticles;
+                        System.out.println("Received particles: " + particles.size());
+                        repaint();
+                    } else {
+                        System.out.println("Unexpected object type received.");
                     }
                 }
             } catch (IOException | ClassNotFoundException e) {
@@ -109,14 +129,16 @@ public class ParticleClient extends JPanel {
         }
     }
 
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        //draw the sprite in the center of the screen
+    
+        //draw the sprite
         int spriteScreenX = getWidth() / 2;
         int spriteScreenY = getHeight() / 2;
-        g.fillOval(spriteScreenX - 5, spriteScreenY - 5, 10, 10); // Draw the sprite as a 10x10 oval
-        
+        g.fillOval(spriteScreenX - 5, spriteScreenY - 5, 10, 10); //draw the sprite as a 10x10 oval
+    
         //draw particles relative to the sprite's position
         if (particles != null) {
             for (Particle p : particles) {
@@ -124,8 +146,12 @@ public class ParticleClient extends JPanel {
                 double dy = p.getY() - sprite.getY();
                 int screenX = (int) (spriteScreenX + dx);
                 int screenY = (int) (spriteScreenY + dy);
+    
+                //check if particles are within the bounds of the panel
                 if (screenX >= 0 && screenX < getWidth() && screenY >= 0 && screenY < getHeight()) {
-                    g.fillOval(screenX - 2, screenY - 2, 5, 5); // Draw particles as 5x5 ovals
+                    g.fillOval(screenX - 2, screenY - 2, 5, 5); //draw particles as 5x5 ovals
+                } else {
+                    System.out.println("Particle out of bounds: (" + screenX + ", " + screenY + ")");
                 }
             }
         }
