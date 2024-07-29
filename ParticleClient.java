@@ -54,7 +54,7 @@ public class ParticleClient extends JPanel {
         requestFocusInWindow();
 
         connectToServer();
-        startParticleUpdates();
+        startSpriteUpdates();;
     }
 
     private void connectToServer() {
@@ -69,22 +69,19 @@ public class ParticleClient extends JPanel {
         }
     }
 
-    private void startParticleUpdates() {
+    private void startSpriteUpdates() {
         if (particleUpdateTimer == null) {
             particleUpdateTimer = new Timer();
             particleUpdateTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    updateParticles();
+                    sendSpritePosition();
                     repaint();
                 }
             }, 0, 16); // approximately 60 FPS
         }
     }
 
-    private void updateParticles() {
-        //update particles received from server
-    }
 
     private void sendSpritePosition() {
         try {
@@ -150,8 +147,6 @@ public class ParticleClient extends JPanel {
                 //check if particles are within the bounds of the panel
                 if (screenX >= 0 && screenX < getWidth() && screenY >= 0 && screenY < getHeight()) {
                     g.fillOval(screenX - 2, screenY - 2, 5, 5); //draw particles as 5x5 ovals
-                } else {
-                    System.out.println("Particle out of bounds: (" + screenX + ", " + screenY + ")");
                 }
             }
         }
