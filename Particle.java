@@ -46,7 +46,7 @@ public class Particle implements Serializable {
             targetY = y;
         }
 
-        // Check for boundary collision and reflect
+        //check for boundary collision and reflect
         if (x <= 0 || x >= canvas.getWidth() - diameter) {
             theta = Math.PI - theta; // reflect horizontally
         }
@@ -54,13 +54,13 @@ public class Particle implements Serializable {
             theta = -theta; // reflect vertically
         }
 
-        // Make sure particles stay within boundaries after reflection
+        //make sure particles stay within boundaries after reflection
         x = Math.max(0, Math.min(x, canvas.getWidth() - diameter));
         y = Math.max(0, Math.min(y, canvas.getHeight() - diameter));
     }
 
     public void draw(Graphics g, int canvasHeight) { 
-        int drawY = canvasHeight - (int)y - diameter; // Invert y-coordinates to meet specs where coordinate (0,0) should be on the bottom left
+        int drawY = canvasHeight - (int)y - diameter; //invert y-coordinates to meet specs where coordinate (0,0) should be on the bottom left
         g.fillOval((int)x, drawY, diameter, diameter); 
     }
 
@@ -99,10 +99,10 @@ public class Particle implements Serializable {
     private void computeTheta() {
         double dx = targetX - x;
         double dy = targetY - y;
-        // Add a small epsilon value to dx to avoid division by zero
+        //add a small epsilon value to dx to avoid division by zero
         double epsilon = 1e-6;
         if (Math.abs(dx) < epsilon && Math.abs(dy) < epsilon) {
-            // If the target is at the starting position, set theta to 0
+            //if the target is at the starting position, set theta to 0
             this.theta = 0;
         } else {
             this.theta = Math.atan2(dy, dx);
