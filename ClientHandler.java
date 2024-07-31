@@ -40,7 +40,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public void sendParticleStates(List<Particle> particles) throws IOException {
+    public synchronized void sendParticleStates(List<Particle> particles) throws IOException {
         if (out != null) {
             try {
                 System.out.println("Sending particles: " + particles.size());
@@ -55,7 +55,7 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public void sendSprites(List<Sprite> sprites) throws IOException {
+    public synchronized void sendSprites(List<Sprite> sprites) throws IOException {
         if (out != null) {
             try {
                 out.reset();
