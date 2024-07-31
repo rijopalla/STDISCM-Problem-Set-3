@@ -2,9 +2,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 
@@ -15,10 +18,12 @@ public class ParticleServer extends JPanel {
     private JRadioButton batchOption1, batchOption2, batchOption3;
     private ServerSocket serverSocket;
     public List<ClientHandler> clientHandlers;
+    private Map<ClientHandler, Sprite> clientSprites;
 
     public ParticleServer() {
         setLayout(new BorderLayout());
         clientHandlers = new CopyOnWriteArrayList<>();
+        clientSprites = new ConcurrentHashMap<>();
         setupUI();
         
         //start server
@@ -83,6 +88,7 @@ public class ParticleServer extends JPanel {
             public void run() {
                 canvas.repaint();
                 broadcastParticleStates();
+                broadcastSprites();
             }
         }, 0, 16);
     }
@@ -98,14 +104,16 @@ public class ParticleServer extends JPanel {
             startX = Math.min(startX, canvas.getWidth() - 5);
             startY = Math.min(startY, canvas.getHeight() - 5);
 
-            canvas.addParticle(new Particle(startX, startY, velocity, startTheta));
+            Particle newParticle = new Particle(startX, startY, velocity, startTheta);
+
+            canvas.addParticle(newParticle);
             canvas.repaint();
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(ParticleServer.this, "Invalid input. Please check your entries.");
         }
     }
 
-
+    //start server
     private void startServer() {
         new Thread(() -> {
             try {
@@ -272,21 +280,59 @@ private void handleBatchOption3() { //if batch option 3 was picked
 
     private void broadcastParticleStates() {
         for (ClientHandler handler : clientHandlers) {
-            handler.sendParticleStates(canvas.getParticles());
+            try {
+                List<Particle> particlesToSend = canvas.getParticles();
+                System.out.println("Sending particles: " + particlesToSend.size());
+                handler.sendParticleStates(particlesToSend);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
+    public void broadcastSprites() {
+        List<Sprite> sprites = getAllSprites();
+        for (ClientHandler handler : clientHandlers) {
+            try {
+                System.out.println("Broadcasting sprites: " + sprites.size());
+                handler.sendSprites(sprites);
+                canvas.updateSprites(sprites);
+            } catch (IOException e) {
+                e.printStackTrace();
+                handler.cleanup(); // Clean up resources and remove the handler if there is an issue
+            }
+        }
+    }
+
+    public void updateClientSprite(ClientHandler handler, Sprite sprite) {
+        if (clientSprites == null) {
+            clientSprites = new ConcurrentHashMap<>();
+        }
+        System.out.printf("Updating sprite for client %s - X: %.2f, Y: %.2f%n",
+                handler, sprite.getX(), sprite.getY());
+        clientSprites.put(handler, sprite);
+        broadcastSprites();
+    }
+
+    public List<Sprite> getAllSprites() {
+        if (clientSprites == null) {
+            System.err.println("Error: clientSprites map is null.");
+            return new ArrayList<>(clientSprites.values());
+        }
+        return new ArrayList<>(clientSprites.values());
+    }
+
+    public List<Particle> getAllParticles() {
+        return this.canvas.getParticles();
+    }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                JFrame frame = new JFrame("Particle Simulation Server");
-                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-                frame.add(new ParticleServer());
-                frame.pack();
-                frame.setVisible(true);
-            }
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Particle Simulation Server");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.add(new ParticleServer());
+            frame.pack();
+            frame.setVisible(true);
         });
     }
 }

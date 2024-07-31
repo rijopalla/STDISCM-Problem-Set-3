@@ -5,7 +5,7 @@ import javax.swing.JPanel;
 
 public class Canvas extends JPanel {
     private List<Particle> particles;
-    private Sprite sprite;
+    private List<Sprite> sprites;
     private int fps;
     private int totalFrames;
     private long lastFpsUpdateTime;
@@ -13,6 +13,7 @@ public class Canvas extends JPanel {
     public Canvas() {
         particles = new ArrayList<>();
         fps = 0;
+        this.sprites = new ArrayList<>();
     }
 
     public void addParticle(Particle p) {
@@ -27,9 +28,8 @@ public class Canvas extends JPanel {
         }
     }
 
-    public void updateSprite(Sprite sprite) {
-        this.sprite = sprite;
-        System.out.printf("Canvas updating sprite - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
+    public void updateSprites(List<Sprite> sprites) {
+        this.sprites = sprites;
         repaint(); //trigger repaint for sprite update
     }
 
@@ -60,8 +60,8 @@ public class Canvas extends JPanel {
             particles.removeAll(particlesToRemove); //remove particles that reached their targets
         }
 
-        //draw sprite if it exists
-        if (sprite != null) {
+        //draw sprites 
+        for (Sprite sprite: sprites) {
             g.setColor(Color.BLUE);
             g.fillOval((int) sprite.getX() - 5, (int) sprite.getY() - 5, 10, 10);
         }

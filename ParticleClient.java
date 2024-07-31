@@ -9,14 +9,17 @@ import java.util.List;
 
 public class ParticleClient extends JPanel {
     private List<Particle> particles;
-    private Sprite sprite;
+    private Sprite localSprite;
     private Socket socket;
     private ObjectOutputStream out;
     private ObjectInputStream in;
+    private List<Sprite> sprites = new ArrayList<>();
 
     public ParticleClient() {
         setPreferredSize(new Dimension(165, 95)); // Adjusted size
-        sprite = new Sprite(640, 360); // Starting at center with default speed
+        Point initPos = getUserInitialPosition();
+        localSprite = new Sprite(initPos.x, initPos.y);
+        sprites.add(localSprite);
         particles = new ArrayList<>();
 
         addKeyListener(new KeyAdapter() {
@@ -33,52 +36,66 @@ public class ParticleClient extends JPanel {
 
     private void handleKeyPress(KeyEvent e) {
         System.out.println("Key pressed: " + e.getKeyCode());
-        System.out.println("Before move: " + sprite.getX() + ", " + sprite.getY());
+        System.out.println("Before move: " + localSprite.getX() + ", " + localSprite.getY());
         switch (e.getKeyCode()) {
             case KeyEvent.VK_W:
             case KeyEvent.VK_UP:
-                sprite.move(0, -10);
+                localSprite.move(0, -10);
                 break;
             case KeyEvent.VK_S:
             case KeyEvent.VK_DOWN:
-                sprite.move(0, 10);
+                localSprite.move(0, 10);
                 break;
             case KeyEvent.VK_A:
             case KeyEvent.VK_LEFT:
-                sprite.move(-10, 0);
+                localSprite.move(-10, 0);
                 break;
             case KeyEvent.VK_D:
             case KeyEvent.VK_RIGHT:
-                sprite.move(10, 0);
+                localSprite.move(10, 0);
                 break;
         }
 
-        System.out.println("After move: " + sprite.getX() + ", " + sprite.getY());
+        System.out.println("After move: " + localSprite.getX() + ", " + localSprite.getY());
         sendSpritePosition();
         repaint();
     }
 
     private void connectToServer() {
-        try {
-            String serverIP = "server"; //replace with actual IP address if needed
-            int serverPort = 12345;
-            socket = new Socket(serverIP, serverPort); //connect to server
-            out = new ObjectOutputStream(socket.getOutputStream());
-            in = new ObjectInputStream(socket.getInputStream());
+        boolean running = true;
+        new Thread(() -> {
+            while (running) {
+                try {
+                    String serverIP = "localhost"; //replace with actual IP address if needed
+                    int serverPort = 12345;
+                    socket = new Socket(serverIP, serverPort); //connect to server
+                    out = new ObjectOutputStream(socket.getOutputStream());
+                    in = new ObjectInputStream(socket.getInputStream());
 
-            new Thread(new ServerListener()).start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+                    new Thread(new ServerListener()).start();
+                    break; // exit the loop if connected successfully
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    cleanUpResources();
+                    try {
+                        Thread.sleep(5000); // wait before trying to reconnect
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        }).start();
     }
 
     private void sendSpritePosition() {
         try {
-            System.out.printf("Sending sprite position - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
-            out.writeObject(sprite);
+            System.out.printf("Sending sprite position - X: %.2f, Y: %.2f%n", 
+                                localSprite.getX(), localSprite.getY());
+            out.writeUnshared(localSprite);
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
+            cleanUpResources(); // Ensure resources are cleaned up properly on error
         }
     }
 
@@ -90,9 +107,12 @@ public class ParticleClient extends JPanel {
                     Object input = in.readObject();
                     System.out.println("Received object: " + input.getClass().getName());
                     if (input instanceof List<?>) {
-                        processParticleList((List<?>) input);
-                    } else if (input instanceof Sprite) {
-                        updateSprite((Sprite) input);
+                        List<?> inputList = (List<?>) input;
+                        if (!inputList.isEmpty() && inputList.get(0) instanceof Particle) {
+                            processParticleList(inputList);
+                        } else if (!inputList.isEmpty() && inputList.get(0) instanceof Sprite) {
+                            processSpriteList(inputList);
+                        }
                     } else {
                         System.out.println("Unexpected object type received.");
                     }
@@ -104,38 +124,61 @@ public class ParticleClient extends JPanel {
             }
         }
 
+        private void processSpriteList(List<?> inputList) {
+            List<Sprite> newSprites = new ArrayList<>();
+            for (Object obj : inputList) {
+                if (obj instanceof Sprite) {
+                    Sprite receivedSprite = (Sprite) obj;
+                    if (!receivedSprite.equals(localSprite)) {
+                        newSprites.add(receivedSprite);
+                    }
+                }
+            }
+            sprites = newSprites;
+            sprites.add(localSprite); //ensure the local sprite is included
+            SwingUtilities.invokeLater(() -> repaint());
+        }
+
         private void processParticleList(List<?> inputList) {
             List<Particle> newParticles = new ArrayList<>();
             for (Object obj : inputList) {
-                System.out.println("Processing object: " + obj.getClass().getName());
                 if (obj instanceof Particle) {
-                    newParticles.add((Particle) obj);
+                    Particle particle = (Particle) obj;
+                    System.out.printf("Processing Particle - X: %.2f, Y: %.2f%n", particle.getX(), particle.getY());
+                    newParticles.add(particle);
                 } else {
-                    System.out.println("Non-particle object received: " + obj.getClass());
+                    System.out.println("Unexpected object in particle list: " + obj.getClass().getName());
                 }
             }
             particles = newParticles;
             System.out.println("Received particles: " + particles.size());
-            SwingUtilities.invokeLater(() -> repaint());
-        }
 
-        private void updateSprite(Sprite newSprite) {
-            sprite = newSprite;
-            System.out.printf("Updated sprite position from server - X: %.2f, Y: %.2f%n", sprite.getX(), sprite.getY());
-            SwingUtilities.invokeLater(() -> repaint());
-        }
-
-        private void cleanUpResources() {
-            try {
-                if (socket != null) socket.close();
-                if (out != null) out.close();
-                if (in != null) in.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (!particles.isEmpty()) {
+                Particle firstParticle = particles.get(0);
+                System.out.printf("First particle X: %.2f, Y: %.2f%n", firstParticle.getX(), firstParticle.getY());
             }
+            System.out.println("Requesting repaint due to new particles.");
+            SwingUtilities.invokeLater(() -> repaint());
         }
+
     }
 
+    private void cleanUpResources() {
+        try {
+            if (out != null) {
+                out.close();
+            }
+            if (in != null) {
+                in.close();
+            }
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -143,23 +186,63 @@ public class ParticleClient extends JPanel {
         //draw sprite
         int spriteScreenX = getWidth() / 2;
         int spriteScreenY = getHeight() / 2;
+
+        int centerX = getWidth() / 2; // Center of the JPanel
+        int centerY = getHeight() / 2;
         g.fillOval(spriteScreenX - 5, spriteScreenY - 5, 10, 10); // Draw sprite as a 10x10 oval
+
+        double scaleFactor = Math.min(getWidth(), getHeight()) / 100.0; //
+        //draw other sprites
+        for (Sprite s : sprites) {
+            if (s == localSprite) continue;
+
+            double dx = s.getX() - localSprite.getX();
+            double dy = s.getY() - localSprite.getY();
+            int screenX = (int) (spriteScreenX + dx);
+            int screenY = (int) (spriteScreenY + dy);
+            
+            g.fillOval(screenX - 5, screenY - 5, 10, 10);
+        }
 
         //draw particles relative to the sprite's position
         if (particles != null) {
             for (Particle p : particles) {
-                double dx = p.getX() - sprite.getX();
-                double dy = p.getY() - sprite.getY();
-                int screenX = (int) (spriteScreenX + dx);
-                int screenY = (int) (spriteScreenY + dy);
-
-                //check if particles are within the bounds of the panel
+                double dx = (p.getX() - localSprite.getX()) * scaleFactor;
+                double dy = (p.getY() - localSprite.getY()) * scaleFactor;
+                int screenX = (int) (centerX + dx);
+                int screenY = (int) (centerY + dy);
+            
+                System.out.printf("Drawing particle at X: %d, Y: %d%n", screenX, screenY); // Debugging line
+            
                 if (screenX >= 0 && screenX < getWidth() && screenY >= 0 && screenY < getHeight()) {
-                    g.fillOval(screenX - 2, screenY - 2, 5, 5); // Draw particles as 5x5 ovals
+                    g.fillOval(screenX - 2, screenY - 2, 5, 5);
                 }
             }
         }
     }
+
+    private Point getUserInitialPosition() {
+        int x = 640; // default value
+        int y = 360; // default value
+
+        try {
+            String xPos = JOptionPane.showInputDialog(this, "Enter initial X position:", "640");
+            String yPos = JOptionPane.showInputDialog(this, "Enter initial Y position:", "360");
+
+            if (xPos != null && !xPos.isEmpty()) {
+                x = Integer.parseInt(xPos);
+            }
+            if (yPos != null && !yPos.isEmpty()) {
+                y = Integer.parseInt(yPos);
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid input. Using default position.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+
+        return new Point(x, y);
+    }
+
+    
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
