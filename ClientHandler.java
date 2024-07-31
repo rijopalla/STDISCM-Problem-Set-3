@@ -44,7 +44,8 @@ public class ClientHandler implements Runnable {
         if (out != null) {
             try {
                 System.out.println("Sending particles: " + particles.size());
-                out.writeUnshared(particles);  // Send particles without shared references
+                out.reset();
+                out.writeObject(particles);
                 out.flush();
             } catch (IOException e) {
                 throw new IOException("Failed to send particle states.", e);
@@ -57,7 +58,8 @@ public class ClientHandler implements Runnable {
     public void sendSprites(List<Sprite> sprites) throws IOException {
         if (out != null) {
             try {
-                out.writeUnshared(sprites);  // Send sprites without shared references
+                out.reset();
+                out.writeObject(sprites);
                 out.flush();
             } catch (IOException e) {
                 throw new IOException("Failed to send sprites.", e);

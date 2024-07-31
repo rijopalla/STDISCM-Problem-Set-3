@@ -17,6 +17,7 @@ public class ParticleClient extends JPanel {
 
     public ParticleClient() {
         setPreferredSize(new Dimension(165, 95)); // Adjusted size
+        setDoubleBuffered(true);
         Point initPos = getUserInitialPosition();
         localSprite = new Sprite(initPos.x, initPos.y);
         sprites.add(localSprite);
