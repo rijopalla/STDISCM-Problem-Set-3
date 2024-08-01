@@ -14,6 +14,9 @@ public class ParticleClient extends JPanel {
     private ObjectOutputStream out;
     private ObjectInputStream in;
     private List<Sprite> sprites = new ArrayList<>();
+    private int fps;
+    private int totalFrames;
+    private long lastFpsUpdateTime;
 
     public ParticleClient() {
         setPreferredSize(new Dimension(165, 95)); // Adjusted size
@@ -22,7 +25,7 @@ public class ParticleClient extends JPanel {
         localSprite = new Sprite(initPos.x, initPos.y);
         sprites.add(localSprite);
         particles = new ArrayList<>();
-
+        fps = 0;
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -184,6 +187,9 @@ public class ParticleClient extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
+        long currentTime = System.currentTimeMillis();
+        totalFrames++;
+
         //draw sprite
         int spriteScreenX = getWidth() / 2;
         int spriteScreenY = getHeight() / 2;
@@ -220,6 +226,17 @@ public class ParticleClient extends JPanel {
                 }
             }
         }
+
+        //calculate FPS
+        if (currentTime - lastFpsUpdateTime >= 500) {
+            fps = (int) (totalFrames / ((currentTime - lastFpsUpdateTime) / 500.0));
+            totalFrames = 0;
+            lastFpsUpdateTime = currentTime;
+        }
+
+        //display FPS
+        g.setColor(Color.BLACK);
+        g.drawString("FPS: " + fps, 10, 10);
     }
 
     private Point getUserInitialPosition() {
