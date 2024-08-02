@@ -205,8 +205,8 @@ public class ParticleClient extends JPanel {
 
             double dx = s.getX() - localSprite.getX();
             double dy = s.getY() - localSprite.getY();
-            int screenX = (int) (spriteScreenX + dx);
-            int screenY = (int) (spriteScreenY + dy);
+            int screenX = (int) (spriteScreenX - dx);
+            int screenY = (int) (spriteScreenY - dy);
             
             g.fillOval(screenX - 5, screenY - 5, 10, 10);
         }
@@ -216,8 +216,8 @@ public class ParticleClient extends JPanel {
             for (Particle p : particles) {
                 double dx = (p.getX() - localSprite.getX()) * scaleFactor;
                 double dy = (p.getY() - localSprite.getY()) * scaleFactor;
-                int screenX = (int) (centerX + dx);
-                int screenY = (int) (centerY + dy);
+                int screenX = (int) (centerX - dx);
+                int screenY = (int) (centerY - dy);
             
                 System.out.printf("Drawing particle at X: %d, Y: %d%n", screenX, screenY); // Debugging line
             
